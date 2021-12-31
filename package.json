@@ -1,0 +1,47 @@
+{
+    "name": "baas",
+    "version": "1.0.0",
+    "description": "The baas is a backend as a service that provide user to the backend servers",
+    "main": "index.js",
+    "scripts": {
+          "dev": "nodemon index.js",
+          "start": "node index.js",
+      "test": "echo \"Error: no test specified\" && exit 1"
+    },
+      "dependencies": {
+      "@socket.io/mongo-adapter": "^0.1.0",
+      "@socket.io/mongo-emitter": "^0.1.0",
+      "@testing-library/jest-dom": "^5.11.4",
+      "@testing-library/user-event": "^12.1.10",
+      "axios": "^0.21.4",
+      "bcryptjs": "^2.4.3",
+      "body-parser": "^1.19.0",
+      "cors": "^2.8.5",
+      "dotenv": "^10.0.0",
+      "express": "^4.17.1",
+      "http-proxy": "^1.18.1",
+      "jsonwebtoken": "^8.5.1",
+      "mongodb": "^4.1.1",
+      "morgan": "^1.10.0",
+      "multer": "^1.4.3",
+      "socket.io": "^4.2.0",
+      "typescript": "^4.4.3",
+      "web-vitals": "^1.0.1"
+    },
+    "devDependencies": {
+      "nodemon": "^2.0.12"
+    },
+    "repository": {
+      "type": "git",
+      "url": "git+https://github.com/youngsterjaidev/baas.git"
+    },
+    "keywords": [
+      "baas"
+    ],
+    "author": "youngsterjaidev",
+    "license": "MIT",
+    "bugs": {
+      "url": "https://github.com/youngsterjaidev/baas/issues"
+    },
+    "homepage": "https://github.com/youngsterjaidev/baas#readme"
+  }
