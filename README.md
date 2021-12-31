@@ -1,2 +1,2 @@
 # baas
-The baas is a backend as a service
+The baas is a backend as a service.
