@@ -4,7 +4,7 @@
   "description": "The baas is a backend as a service that provide user to the backend servers",
   "main": "index.js",
   "scripts": {
-		"dev": "nodemon index.js",
+		"dev": "nodemon server.js",
 		"start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

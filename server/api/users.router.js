@@ -16,6 +16,7 @@ const {
     getPrivateVideo,
 		delDB
 } = require("./users.controller")
+
 const router = express.Router()
 
 // ROUTES
