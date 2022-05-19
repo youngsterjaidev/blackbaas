@@ -14,8 +14,17 @@ const URI = process.env.MONGODB_URI || "mongodb://localhost:27017";
 		app.get("/", async (req, res) => {
 			console.log("GET /")
 			try {
-				let db = await client.db("server967")
-				let feedback = await db.collection("users").findOne({})
+
+				databasesList = await client.db().admin().listDatabases();
+ 
+				console.log("Databases:");
+				databasesList.databases.forEach(db => console.log(` - ${db.name}`));
+
+				res.status(200).json({ "message": "Everything okay" })
+
+
+				//let feedback = await db.collection("users").findOne({})
+				
 				if(feedback) {
 					// get the feedback
 					// find the database of the user

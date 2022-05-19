@@ -1,6 +1,8 @@
 const multer = require("multer");
 const { addVideoEntry } = require("../dao/usersDAO");
 
+const inMemoryStorage = multer.memoryStorage();
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     console.log("okay ", req);
@@ -35,3 +37,5 @@ exports.addEntryInDatabase = async (req, res, next) => {
 };
 
 exports.uploadVideoMiddleware = multer({ storage: storage });
+
+exports.uploadStrategy = multer({ storage: inMemoryStorage }).single('image');

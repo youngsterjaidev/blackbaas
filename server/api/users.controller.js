@@ -2,8 +2,38 @@ const fs = require("fs")
 const bcrypt = require("bcryptjs")
 const jwt = require("jsonwebtoken")
 const path = require("path")
+const {
+  BlobServiceClient,
+  StorageSharedKeyCredential,
+  newPipeline
+} = require('@azure/storage-blob')
+
 
 const SECRET_KEY = process.env.SECRET_KEY || "fdsfjhsdjfhdjs"
+
+const containerName1  = 'azurelearnstorage';
+const containerName2 = 'images';
+const ONE_MEGABYTE = 1024 * 1024;
+const uploadOptions = { bufferSize: 4 * ONE_MEGABYTE, maxBuffers: 20 };
+const ONE_MINUTE = 60 * 1000;
+
+const sharedKeyCredential = new StorageSharedKeyCredential(
+	`${process.env.AZURE_STORAGE_ACCOUNT_NAME}`,
+	`${process.env.AZURE_STORAGE_ACCOUNT_ACCESS_KEY}`
+)
+const pipeline = newPipeline(sharedKeyCredential)
+
+const blobServiceClient = new BlobServiceClient(
+	`https://${process.env.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net`,
+	pipeline
+)
+
+const getBlobName = originalName => {
+	// use random Number to generate a unique file name,
+	// removing "0." from the start of the string
+	const identifier = Math.random().toString().replace(/0\./, '')
+	return `${identifier}-${originalName}`
+}
 
 const toJSON = ({ username, email }) => {
     return {
@@ -329,5 +359,65 @@ exports.delDB = async(req, res) => {
 		res.status(500).json({
 			message: "Something went Wrong !"
 		})
+	}
+}
+
+exports.getAzureBlobStorage = async (req, res, next) => {
+	let viewData;
+	
+	try {
+
+		// get the container client from the blobServiceClient
+		const containerClient = blobServiceClient.getContainerClient(containerName1)
+		// get the list of blobs from the response	
+		const listBlobsResponse = await containerClient.listBlobFlatSegment()
+
+		for await (const blob of listBlobsResponse.segment.blobItems) {
+			console.log(`Blob: ${blob.name}`)
+		}
+
+		viewData = {
+			title: "Home",
+			viewName: "Index",
+			accountName: process.env.AZURE_STORAGE_ACCOUNT_NAME,
+			containerName: containerName1
+		}
+
+		if(listBlobsResponse.segment.blobItems.length) {
+			viewData.thumbnails = listBlobsResponse.segment.blobItems
+		}
+
+	} catch(e) {
+		viewData = {
+			title: "Error",
+			viewName: "error",
+			message: "There was an error contacting the blob storage container.",
+			error: e
+		}
+		res.status(500)
+	} finally {
+		res.json(viewData)
+	}
+}
+
+exports.postAzureBlobStorage =  async (req, res) => {
+	try {
+	const getStream = await import("into-stream")
+	const blobName = getBlobName(req.file.originalname)
+	const stream = getStream(req.file.buffer)
+	const containerClient = blobServiceClient.getContainerClient(containerName1)
+	const blockBlobClient = containerClient.getBlockBlobClient(blobName)
+
+		await blockBlobClient.uploadStream(
+			stream, 
+			uploadOptions.bufferSize, 
+			uploadOptions.maxBuffers,
+			{ blobHTTPHeaders: { blobContentType: "video/mp4" } }
+		)
+
+		res.send("File Uploaded Successfully")
+	}catch(e) {
+		console.log("Error While Uploading the file : ", e)
+		res.send("Error While Uploading the file : ", e)
 	}
 }
