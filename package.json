@@ -4,11 +4,13 @@
   "description": "The baas is a backend as a service that provide user to the backend servers",
   "main": "index.js",
   "scripts": {
-		"dev": "nodemon server.js",
-		"start": "node index.js",
+    "dev": "nodemon server.js",
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-	"dependencies": {
+  "dependencies": {
+    "@azure/storage-blob": "^12.10.0",
+    "@reach/router": "^1.3.4",
     "@socket.io/mongo-adapter": "^0.1.0",
     "@socket.io/mongo-emitter": "^0.1.0",
     "@testing-library/jest-dom": "^5.11.4",
@@ -20,16 +22,26 @@
     "dotenv": "^10.0.0",
     "express": "^4.17.1",
     "http-proxy": "^1.18.1",
+    "into-stream": "^7.0.0",
     "jsonwebtoken": "^8.5.1",
     "mongodb": "^4.1.1",
     "morgan": "^1.10.0",
     "multer": "^1.4.3",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
+    "react-scripts": "4.0.3",
     "socket.io": "^4.2.0",
+    "styled-components": "^5.3.5",
     "typescript": "^4.4.3",
     "web-vitals": "^1.0.1"
   },
   "devDependencies": {
-    "nodemon": "^2.0.12"
+    "@types/reach__router": "^1.3.10",
+    "@types/react": "17.0.20",
+    "@types/react-dom": "17.0.9",
+    "@types/styled-components": "^5.1.25",
+    "nodemon": "^2.0.12",
+    "typescript": "4.4.2"
   },
   "repository": {
     "type": "git",
