@@ -4,7 +4,7 @@
   "description": "The baas is a backend as a service that provide user to the backend servers",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon server.js",
+    "dev": "nodemon index.js",
     "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -15,6 +15,7 @@
     "@socket.io/mongo-emitter": "^0.1.0",
     "@testing-library/jest-dom": "^5.11.4",
     "@testing-library/user-event": "^12.1.10",
+    "aws-sdk": "^2.1142.0",
     "axios": "^0.21.4",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.19.0",
@@ -27,6 +28,7 @@
     "mongodb": "^4.1.1",
     "morgan": "^1.10.0",
     "multer": "^1.4.3",
+    "prettier": "^2.6.2",
     "react": "^18.1.0",
     "react-dom": "^18.1.0",
     "react-scripts": "4.0.3",

@@ -1,18 +1,23 @@
-const fs = require("fs")
-const bcrypt = require("bcryptjs")
-const jwt = require("jsonwebtoken")
-const path = require("path")
+const fs = require("fs");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const path = require("path");
 const {
-  BlobServiceClient,
-  StorageSharedKeyCredential,
-  newPipeline
-} = require('@azure/storage-blob')
+	BlobServiceClient,
+	StorageSharedKeyCredential,
+	newPipeline,
+} = require("@azure/storage-blob");
 
+const AWS = require("aws-sdk");
 
-const SECRET_KEY = process.env.SECRET_KEY || "fdsfjhsdjfhdjs"
+AWS.config.update({ region: "ap-south-1" });
 
-const containerName1  = 'azurelearnstorage';
-const containerName2 = 'images';
+let s3 = new AWS.S3({ apiVersion: "2006-03-01" });
+
+const SECRET_KEY = process.env.SECRET_KEY || "fdsfjhsdjfhdjs";
+
+const containerName1 = "azurelearnstorage";
+const containerName2 = "images";
 const ONE_MEGABYTE = 1024 * 1024;
 const uploadOptions = { bufferSize: 4 * ONE_MEGABYTE, maxBuffers: 20 };
 const ONE_MINUTE = 60 * 1000;
@@ -20,404 +25,528 @@ const ONE_MINUTE = 60 * 1000;
 const sharedKeyCredential = new StorageSharedKeyCredential(
 	`${process.env.AZURE_STORAGE_ACCOUNT_NAME}`,
 	`${process.env.AZURE_STORAGE_ACCOUNT_ACCESS_KEY}`
-)
-const pipeline = newPipeline(sharedKeyCredential)
+);
+const pipeline = newPipeline(sharedKeyCredential);
 
 const blobServiceClient = new BlobServiceClient(
 	`https://${process.env.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net`,
 	pipeline
-)
+);
 
-const getBlobName = originalName => {
+const getBlobName = (originalName) => {
 	// use random Number to generate a unique file name,
 	// removing "0." from the start of the string
-	const identifier = Math.random().toString().replace(/0\./, '')
-	return `${identifier}-${originalName}`
-}
+	const identifier = Math.random().toString().replace(/0\./, "");
+	return `${identifier}-${originalName}`;
+};
 
 const toJSON = ({ username, email }) => {
-    return {
-        username,
-        email
-    }
-}
+	return {
+		username,
+		email,
+	};
+};
 
 // we don't put this in async because the value is important we can wait until
 // its done
 const encoded = (userInfo) => {
-    return jwt.sign(
-        {
-            exp: Math.floor(Date.now() / 1000) + 60 * 60 * 4,
-            ...toJSON(userInfo)
-        },
-        SECRET_KEY
-    )
-}
+	return jwt.sign(
+		{
+			exp: Math.floor(Date.now() / 1000) + 60 * 60 * 4,
+			...toJSON(userInfo),
+		},
+		SECRET_KEY
+	);
+};
 
 const decoded = async (userJWT) => {
-    return await jwt.verify(userJWT, SECRET_KEY)
-}
+	return await jwt.verify(userJWT, SECRET_KEY);
+};
 
-const hashPassword = async password => await bcrypt.hash(password, 10)
+const hashPassword = async (password) => await bcrypt.hash(password, 10);
 
 const comparePassword = async (plainText, password) => {
-    console.log(plainText, password)
-    return await bcrypt.compare(plainText, password)
-}
+	console.log(plainText, password);
+	return await bcrypt.compare(plainText, password);
+};
 
 const {
-    addUserDAO,
-    getAllUsersDAO,
-		delColDAO,
-    getUserDAO,
-    getVideosDAO,
-    loginUserDAO,
-    getPrivateVideoDAO,
-    deleteUserDAO,
-		getDelDB,
-} = require("../dao/usersDAO")
+	addUserDAO,
+	getAllUsersDAO,
+	delColDAO,
+	getUserDAO,
+	getVideosDAO,
+	loginUserDAO,
+	getPrivateVideoDAO,
+	deleteUserDAO,
+	getDelDB,
+} = require("../dao/usersDAO");
+
+const { getAWSS3BucketsListDAO } = require("../dao/awsDAO");
 
 exports.login = async (req, res) => {
-    try {
-        if (!req.body) return res.status(400).json({ message: "Bad Request !" })
+	try {
+		if (!req.body) return res.status(400).json({ message: "Bad Request !" });
 
-        const { email, password } = req.body
+		const { email, password } = req.body;
 
-        // validat the inputs 
-        if (typeof email !== "string" || !email) {
-            res.status(400).json({ message: "Bad Request Email !" })
-        }
+		// validat the inputs
+		if (typeof email !== "string" || !email) {
+			res.status(400).json({ message: "Bad Request Email !" });
+		}
 
-        if (typeof password !== "string" || !password) {
-            res.status(400).json({ message: "Bad Request Password !" })
-        }
+		if (typeof password !== "string" || !password) {
+			res.status(400).json({ message: "Bad Request Password !" });
+		}
 
-        console.log("Safe Point")
+		console.log("Safe Point");
 
-        // get the user from the database
-        const userData = await getUserDAO(email)
+		// get the user from the database
+		const userData = await getUserDAO(email);
 
-        // check if it not returning anything there is no record in the database
-        if (!userData) {
-            return res.status(204).json({ message: "Not Registered yet !" })
-        }
+		// check if it not returning anything there is no record in the database
+		if (!userData) {
+			return res.status(204).json({ message: "Not Registered yet !" });
+		}
 
-        // then check the password
-        if (!(await comparePassword(password, userData.user.password))) {
-            return res.status(200).json({ message: "Something went wrong !" })
-        }
+		// then check the password
+		if (!(await comparePassword(password, userData.user.password))) {
+			return res.status(200).json({ message: "Something went wrong !" });
+		}
 
-        // store the user's login info in the database
-        const loginResponse = await loginUserDAO(userData.user.email, encoded(userData.user))
+		// store the user's login info in the database
+		const loginResponse = await loginUserDAO(
+			userData.user.email,
+			encoded(userData.user)
+		);
 
-        if (!loginResponse) {
-            return res.status(200).json({ message: "Something went wrong !" })
-        }
+		if (!loginResponse) {
+			return res.status(200).json({ message: "Something went wrong !" });
+		}
 
-        // send the token and info of user as he login 
-        res.status(200).json({ auth_token: encoded(userData.user), info: userData.user })
-    } catch (e) {
-        console.error("Error Occured while user Login : ", e)
-        //res.status(400).json({ message: "Someting broke !" })
-    }
-}
+		// send the token and info of user as he login
+		res
+			.status(200)
+			.json({ auth_token: encoded(userData.user), info: userData.user });
+	} catch (e) {
+		console.error("Error Occured while user Login : ", e);
+		//res.status(400).json({ message: "Someting broke !" })
+	}
+};
 
 exports.getAllUsers = async (req, res) => {
-    let result = await getAllUsersDAO()
-    console.log(result)
-    if (result) {
-        res.status(200).json(result)
-    }
-}
+	let result = await getAllUsersDAO();
+	console.log(result);
+	if (result) {
+		res.status(200).json(result);
+	}
+};
 
 exports.delCol = async (req, res) => {
 	try {
-		if(!req.body) {
-			console.log("Request have no body !")
-			res.status(204).json({ message: "Something went wrong !" })
+		if (!req.body) {
+			console.log("Request have no body !");
+			res.status(204).json({ message: "Something went wrong !" });
 		}
 
-		let { colName } = req.body
+		let { colName } = req.body;
 
-		let feedback = await delColDAO(colName)
+		let feedback = await delColDAO(colName);
 
-		if(feedback) {
-			res.status(200).json({ 
+		if (feedback) {
+			res.status(200).json({
 				message: "All users are deleted successfully !",
-				data: feedback
-			})
-			return
+				data: feedback,
+			});
+			return;
 		}
-		res.status(204).json({ message: "Users are not found !" })
-	} catch(e) {
-		console.error("Error occured in delCol fn ", e)
+		res.status(204).json({ message: "Users are not found !" });
+	} catch (e) {
+		console.error("Error occured in delCol fn ", e);
 	}
-}
+};
 
 /**
  * @param [email] of the user
  * @param [password] of the user
- * @param [username] name of the user 
+ * @param [username] name of the user
  */
 exports.addUser = async (req, res) => {
-    try {
-        const { email, password, username } = req.body
+	try {
+		const { email, password, username } = req.body;
 
-        console.log("====", email, password, username)
+		console.log("====", email, password, username);
 
-        // get the user from the database
-        const findUserData = await getUserDAO(email)
+		// get the user from the database
+		const findUserData = await getUserDAO(email);
 
-        console.log("UserData", findUserData)
+		console.log("UserData", findUserData);
 
-        // check if there no user record
-        if (findUserData) {
-            res.status(404).json({
-                message: "User already Registered !"
-            })
-            return
-        }
+		// check if there no user record
+		if (findUserData) {
+			res.status(404).json({
+				message: "User already Registered !",
+			});
+			return;
+		}
 
-        // change the password to encrypted home
-        let hash = await hashPassword(password)
+		// change the password to encrypted home
+		let hash = await hashPassword(password);
 
-        // send the info to the DAO
-        let status = await addUserDAO(username, email, hash)
+		// send the info to the DAO
+		let status = await addUserDAO(username, email, hash);
 
-        // get the user from the database
-        const userData = await getUserDAO(email)
-        console.log(status)
+		// get the user from the database
+		const userData = await getUserDAO(email);
+		console.log(status);
 
-        if (status) {
-            // store the user's login info in the database
-            const loginResponse = await loginUserDAO(userData.user.email, encoded(userData.user))
+		if (status) {
+			// store the user's login info in the database
+			const loginResponse = await loginUserDAO(
+				userData.user.email,
+				encoded(userData.user)
+			);
 
-            if (!loginResponse) {
-                return res.status(400).json({ message: "Something went wrong !" })
-            }
+			if (!loginResponse) {
+				return res.status(400).json({ message: "Something went wrong !" });
+			}
 
-            console.log("Login Response ", loginResponse)
+			console.log("Login Response ", loginResponse);
 
-            // send the token and info of user as he login 
-            res.status(200).json({
-                message: "User Registered Successfully !",
-                auth_token: encoded(userData.user), info: userData.user
-            })
-            return
-        }
-    } catch (e) {
-        console.error("Error Occured while getting registeration of the user : ", e)
-        res.status(500).json({
-            message: "Something went wrong !"
-        })
-    }
-}
+			// send the token and info of user as he login
+			res.status(200).json({
+				message: "User Registered Successfully !",
+				auth_token: encoded(userData.user),
+				info: userData.user,
+			});
+			return;
+		}
+	} catch (e) {
+		console.error(
+			"Error Occured while getting registeration of the user : ",
+			e
+		);
+		res.status(500).json({
+			message: "Something went wrong !",
+		});
+	}
+};
 
 /**
  * Delete User
- * @param {*} req 
- * @param {*} res 
- * @returns 
+ * @param {*} req
+ * @param {*} res
+ * @returns
  */
 exports.deleteUser = async (req, res) => {
-    try {
-        let feedback = await deleteUserDAO(req.body.userId)
+	try {
+		let feedback = await deleteUserDAO(req.body.userId);
 
-        console.info("feedback", feedback)
+		console.info("feedback", feedback);
 
-        if (feedback?.deletedCount === 0) {
-            console.info("End the response !")
-            res.status(200).json({
-                message: "No User found !"
-            })
-        } else {
-            res.status(200).json({
-                message: "User Deleted Successfully !"
-            })
-        }
-    } catch (e) {
-        console.error("Error Occured while in deleteUser Request : ", e)
-        res.sendStatus(500).json({
-            message: "Something Went Wrong !"
-        })
-    }
-}
+		if (feedback?.deletedCount === 0) {
+			console.info("End the response !");
+			res.status(200).json({
+				message: "No User found !",
+			});
+		} else {
+			res.status(200).json({
+				message: "User Deleted Successfully !",
+			});
+		}
+	} catch (e) {
+		console.error("Error Occured while in deleteUser Request : ", e);
+		res.sendStatus(500).json({
+			message: "Something Went Wrong !",
+		});
+	}
+};
 
 /**
  * @param [key] required in the headers for authentication
- * @param [email] required to find the data 
+ * @param [email] required to find the data
  */
 exports.getUser = async (req, res) => {
-    const { key } = req.headers
-    const { userId } = req.params
+	const { key } = req.headers;
+	const { userId } = req.params;
 
-    if (!userId) {
-        res.status(204).json({ message: "No Record Found !" })
-    }
+	if (!userId) {
+		res.status(204).json({ message: "No Record Found !" });
+	}
 
-    if (key) {
-        let result = await getUserDAO(userId, key)
-        if (result) {
-            res.status(200).json(result)
-						return
-        }
-
-        res.status(204).json({ message: "No Record Found !" })
-				return 
-    }
-
-    let result = await getUserDAO(userId)
-
-    res.status(200).json(result)
-}
-
-exports.getVideo = async (req, res) => {
-    console.log("Hit That function")
-
-    // get the range from the headers
-    const range = req.headers.range
-    //const range = "bytes=0-"
-    // const { key } = req.params
-    const videoPath = path.join(__dirname, `../../uploads/${req.params.videoPath}`)
-
-    console.log("Key --- ", req.headers.key)
-
-    if (!range) {
-        console.log(req.params)
-        res.status(403).send("Permission Denied")
-    }
-
-    // if (!key) {
-    //     res.status(403).send("Access Denied")
-    // }
-
-    try {
-        const videoSize = fs.statSync(videoPath)
-        const CHUNK_SIZE = 10 ** 6
-        // get the start by replacing and get the number
-        const start = Number(range.replace(/\D/g, ""))
-        const end = Math.min(start + CHUNK_SIZE, videoSize.size - 1)
-        const contentLength = end - start + 1
-
-        const headers = {
-            "Content-Range": `bytes ${start}-${end}/${videoSize.size}`,
-            "Accept-Ranges": "bytes",
-            "Content-Length": contentLength,
-            "Content-Type": "video/mp4"
-        }
-
-        // send header that is 206 i.e. open connection and send the headers
-        res.writeHead(206, headers)
-
-        const videoStream = fs.createReadStream(videoPath, { start, end })
-
-        videoStream.pipe(res)
-    } catch (e) {
-        console.log(`Error Occured : ${e}`)
-        res.status(500).json({ message: "Internal Server Error" })
-    }
-}
-
-exports.getVideos = async (req, res) => {
-    try {
-        let result = await getVideosDAO()
-        res.status(200).json(result)
-    } catch (e) {
-        console.error("Error Occured whiles getting all public video : ", e)
-    }
-}
-
-exports.uploadVideo = async (req, res) => {
-    res.status(200).json({
-        message: "Uploaded Successfully!"
-    })
-}
-
-exports.getPrivateVideo = async (req, res) => {
-    try {
-        let { email } = req.params
-        const result = await this.getPrivateVideoDAO(email)
-        return res.status(200).json(result)
-    } catch (e) {
-        console.error("Error while getting the private video : ", e)
-        res.status(500).json({ message: "Internal Server Error" })
-    }
-}
-
-exports.delDB = async(req, res) => {
-	try {
-		let feedback = await getDelDB()
-
-		if(feedback) {
-			res.status(200).json({ message: "Default Database is deleted !" })
-			return
+	if (key) {
+		let result = await getUserDAO(userId, key);
+		if (result) {
+			res.status(200).json(result);
+			return;
 		}
 
-		res.status(204).json({ message: "Default Database is deleted !" })
-	} catch(e) {
-		console.error("Error Occured in delDB fun ", e)
-		res.status(500).json({
-			message: "Something went Wrong !"
-		})
+		res.status(204).json({ message: "No Record Found !" });
+		return;
 	}
-}
 
+	let result = await getUserDAO(userId);
+
+	res.status(200).json(result);
+};
+
+exports.getVideo = async (req, res) => {
+	console.log("Hit That function");
+
+	// get the range from the headers
+	const range = req.headers.range;
+	//const range = "bytes=0-"
+	// const { key } = req.params
+	const videoPath = path.join(
+		__dirname,
+		`../../uploads/${req.params.videoPath}`
+	);
+
+	console.log("Key --- ", req.headers.key);
+
+	if (!range) {
+		console.log(req.params);
+		res.status(403).send("Permission Denied");
+	}
+
+	// if (!key) {
+	//     res.status(403).send("Access Denied")
+	// }
+
+	try {
+		const videoSize = fs.statSync(videoPath);
+		const CHUNK_SIZE = 10 ** 6;
+		// get the start by replacing and get the number
+		const start = Number(range.replace(/\D/g, ""));
+		const end = Math.min(start + CHUNK_SIZE, videoSize.size - 1);
+		const contentLength = end - start + 1;
+
+		const headers = {
+			"Content-Range": `bytes ${start}-${end}/${videoSize.size}`,
+			"Accept-Ranges": "bytes",
+			"Content-Length": contentLength,
+			"Content-Type": "video/mp4",
+		};
+
+		// send header that is 206 i.e. open connection and send the headers
+		res.writeHead(206, headers);
+
+		const videoStream = fs.createReadStream(videoPath, { start, end });
+
+		videoStream.pipe(res);
+	} catch (e) {
+		console.log(`Error Occured : ${e}`);
+		res.status(500).json({ message: "Internal Server Error" });
+	}
+};
+
+exports.getVideos = async (req, res) => {
+	try {
+		let result = await getVideosDAO();
+		res.status(200).json(result);
+	} catch (e) {
+		console.error("Error Occured whiles getting all public video : ", e);
+	}
+};
+
+exports.uploadVideo = async (req, res) => {
+	res.status(200).json({
+		message: "Uploaded Successfully!",
+	});
+};
+
+exports.getPrivateVideo = async (req, res) => {
+	try {
+		let { email } = req.params;
+		const result = await this.getPrivateVideoDAO(email);
+		return res.status(200).json(result);
+	} catch (e) {
+		console.error("Error while getting the private video : ", e);
+		res.status(500).json({ message: "Internal Server Error" });
+	}
+};
+
+exports.delDB = async (req, res) => {
+	try {
+		let feedback = await getDelDB();
+
+		if (feedback) {
+			res.status(200).json({ message: "Default Database is deleted !" });
+			return;
+		}
+
+		res.status(204).json({ message: "Default Database is deleted !" });
+	} catch (e) {
+		console.error("Error Occured in delDB fun ", e);
+		res.status(500).json({
+			message: "Something went Wrong !",
+		});
+	}
+};
+
+/*
+ *
+ */
 exports.getAzureBlobStorage = async (req, res, next) => {
 	let viewData;
-	
-	try {
 
+	try {
 		// get the container client from the blobServiceClient
-		const containerClient = blobServiceClient.getContainerClient(containerName1)
-		// get the list of blobs from the response	
-		const listBlobsResponse = await containerClient.listBlobFlatSegment()
+		const containerClient =
+			blobServiceClient.getContainerClient(containerName1);
+		// get the list of blobs from the response
+		const listBlobsResponse = await containerClient.listBlobFlatSegment();
 
 		for await (const blob of listBlobsResponse.segment.blobItems) {
-			console.log(`Blob: ${blob.name}`)
+			console.log(`Blob: ${blob.name}`);
 		}
 
 		viewData = {
 			title: "Home",
 			viewName: "Index",
 			accountName: process.env.AZURE_STORAGE_ACCOUNT_NAME,
-			containerName: containerName1
-		}
+			containerName: containerName1,
+		};
 
-		if(listBlobsResponse.segment.blobItems.length) {
-			viewData.thumbnails = listBlobsResponse.segment.blobItems
+		if (listBlobsResponse.segment.blobItems.length) {
+			viewData.thumbnails = listBlobsResponse.segment.blobItems;
 		}
-
-	} catch(e) {
+	} catch (e) {
 		viewData = {
 			title: "Error",
 			viewName: "error",
 			message: "There was an error contacting the blob storage container.",
-			error: e
-		}
-		res.status(500)
+			error: e,
+		};
+		res.status(500);
 	} finally {
-		res.json(viewData)
+		res.json(viewData);
 	}
-}
+};
 
-exports.postAzureBlobStorage =  async (req, res) => {
+exports.postAzureBlobStorage = async (req, res) => {
 	try {
-	const getStream = await import("into-stream")
-	const blobName = getBlobName(req.file.originalname)
-	const stream = getStream(req.file.buffer)
-	const containerClient = blobServiceClient.getContainerClient(containerName1)
-	const blockBlobClient = containerClient.getBlockBlobClient(blobName)
+		const getStream = await import("into-stream");
+		const blobName = getBlobName(req.file.originalname);
+		const stream = getStream.default(req.file.buffer);
+		const containerClient =
+			blobServiceClient.getContainerClient(containerName1);
+		const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
 		await blockBlobClient.uploadStream(
-			stream, 
-			uploadOptions.bufferSize, 
+			stream,
+			uploadOptions.bufferSize,
 			uploadOptions.maxBuffers,
 			{ blobHTTPHeaders: { blobContentType: "video/mp4" } }
-		)
+		);
 
-		res.send("File Uploaded Successfully")
-	}catch(e) {
-		console.log("Error While Uploading the file : ", e)
-		res.send("Error While Uploading the file : ", e)
+		res.json({ message: "File Uploaded Successfully" });
+	} catch (e) {
+		console.log("Error While Uploading the file : ", e);
+		res.send("Error While Uploading the file : ", e);
 	}
-}
+};
+
+// AWS
+exports.getAWSS3BucketsList = (req, res) => {
+	s3.listBuckets((err, data) => {
+		if (err) {
+			console.log("Error Occured while getting the buckets list :", e);
+			res.status(500).json({ err });
+		} else {
+			res.status(200).json(data.Buckets);
+		}
+	});
+};
+
+exports.getCreateAWSS3Bucket = (req, res) => {
+	let { bucketName } = req.params;
+	let bucketsParams = {
+		Bucket: bucketName,
+	};
+	s3.createBucket(bucketsParams, (err, data) => {
+		if (err) {
+			console.log("Error Occured while getting the buckets list :", err);
+			if (err.code === "BucketAlreadyOwnedByYou") {
+				res.json({ message: "Bucket already exists !" });
+				return;
+			}
+			res.status(500).json({ err });
+		} else {
+			res.status(200).json(data);
+		}
+	});
+};
+
+exports.deleteAWSS3Bucket = (req, res) => {
+	let { bucketName } = req.params;
+	let bucketsParams = {
+		Bucket: bucketName,
+	};
+	s3.deleteBucket(bucketsParams, (err, data) => {
+		if (err) {
+			console.log("Error Occured while getting the buckets list :", err);
+			if (err.code === "BucketAlreadyOwnedByYou") {
+				res.json({ message: "Bucket already exists !" });
+				return;
+			}
+			res.status(500).json({ err });
+		} else {
+			res.status(200).json({
+				message: "Bucket deleted Successfully",
+			});
+		}
+	});
+};
+
+/*
+ * Get all the object in the blob storage
+ * - Get the bucket name from the request parmater
+ * - create a bucket params along with bucket name
+ */
+exports.getAWSS3BucketObjects = (req, res) => {
+	let { bucketName } = req.params;
+	let bucketsParams = {
+		Bucket: bucketName,
+	};
+	s3.listObjects(bucketsParams, (err, data) => {
+		if (err) {
+			console.log("Error Occured while getting the buckets list :", err);
+			if (err.code === "BucketAlreadyOwnedByYou") {
+				res.json({ message: "Bucket already exists !" });
+				return;
+			}
+			res.status(500).json({ err });
+		} else {
+			res.status(200).json(data.Contents);
+		}
+	});
+};
+
+/*
+ * Upload the blob file to S3 bucket
+ */
+exports.uploadAWSS3BucketObject = async (req, res) => {
+	try {
+		const getStream = await import("into-stream");
+		const fileStream = getStream.default(req.file.buffer);
+		let uploadParams = {
+			Bucket: req.params.bucketName,
+			Key: req.file.originalname,
+			Body: fileStream,
+		};
+		s3.upload(uploadParams, (err, data) => {
+			if (err) {
+				console.log("Error Occured ", err);
+				res.send(err);
+			} else {
+				res.json(data);
+			}
+		});
+	} catch (e) {
+		console.log(
+			"Error Occured while uploading the image to aws uploadAWSS3BucketObject fn: ",
+			e
+		);
+	}
+};
