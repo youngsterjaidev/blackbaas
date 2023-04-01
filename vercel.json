@@ -1,5 +1,5 @@
 {
-  "installCommand": "npm install",
+  "installCommand": "npm install --force",
   "builds": [
     {
       "src": "index.js",
