@@ -1,8 +1,5 @@
 {
-  "scripts": {
-      "build": "npm run build",
-      "install": "npm install --force"
-  },
+  "installCommand": "npm install",
   "builds": [
     {
       "src": "index.js",
