@@ -228,3 +228,54 @@ exports.getPrivateVideoDAO = async (email) => {
         return null
     }
 }
+
+exports.postProjectDAO = async (email, githubUrl, videoUrl) => {
+    try {
+        let feedback = await _dbUsers.collection("users").updateOne(
+            {
+                email: email,
+            }, 
+            {
+                $push: {
+                    projects: { 
+                        githubUrl,
+                        videoUrl,
+                        time: Date.now()
+                    }
+                }
+            },
+            { upsert: true }
+        )
+
+        if(!feedback) {}
+
+        return feedback
+    } catch(e) {
+        console.log("Error Occured while adding the project data to the users info postProject fn : ", e)
+    }
+}
+
+exports.getProjectsDAO = async (email) => {
+    try {
+        let projection = {
+            _id: 0,
+            email: 1,
+            projects: 1
+        }
+
+        console.log(projection, email)
+
+        let feedback = await _dbUsers.collection("users").find(
+            {email},
+            {projection}
+        ).toArray()
+
+        console.log(feedback)
+
+        if(!feedback) {}
+
+        return feedback
+    } catch(e) {
+        console.log("Error Occured while finding the project from the database getProjectsDAO fn : ", e)
+    }
+}

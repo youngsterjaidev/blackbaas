@@ -21,8 +21,11 @@ const {
 	getCreateAWSS3Bucket,
 	deleteAWSS3Bucket,
 	getAWSS3BucketObjects,
-	uploadAWSS3BucketObject
+	uploadAWSS3BucketObject,
+  postProject,
+  getProjects,
 } = require("./users.controller")
+const { route } = require("../server")
 
 const router = express.Router()
 
@@ -58,6 +61,9 @@ router.route("/videos").get(getVideos)
 
 router.route("/login").post(login)
 router.route("/delDB").get(delDB)
+
+router.route("/projects/submit-project").get(postProject)
+router.route("/projects/get-projects/:email").get(getProjects)
 
 // exporting the router module
 module.exports = router

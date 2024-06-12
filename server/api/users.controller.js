@@ -80,6 +80,8 @@ const {
 	getPrivateVideoDAO,
 	deleteUserDAO,
 	getDelDB,
+	postProjectDAO,
+	getProjectsDAO
 } = require("../dao/usersDAO");
 
 const { getAWSS3BucketsListDAO } = require("../dao/awsDAO");
@@ -550,3 +552,81 @@ exports.uploadAWSS3BucketObject = async (req, res) => {
 		);
 	}
 };
+
+// Projects
+exports.postProject = (req, res) => {
+	try {
+		// if(!req.body) {
+		// 	console.log("Body not found")
+		// 	res.status(204).json({ message: "Something went wrong !" });
+		// 	return
+		// }
+
+		req.body = {
+			email: "test333@gmail.com",
+			githubUrl: "jaam",
+			videoUrl: "jaam"
+		}
+
+		const { email, githubUrl, videoUrl } = req.body
+
+		// validat the inputs
+		if (typeof email !== "string" || !email) {
+			console.log("Email not found")
+			res.status(400).json({ message: "Bad Request Email !" });
+			return
+		}
+
+		if (typeof githubUrl !== "string" || !githubUrl) {
+			console.log("GithubUrl not found")
+			res.status(400).json({ message: "Bad Request githubUrl !" });
+			return
+		}
+
+		if (typeof videoUrl !== "string" || !videoUrl) {
+			console.log("videoUrl not found")
+			res.status(400).json({ message: "Bad Request videoUrl !" });
+			return
+		}
+
+		let result = postProjectDAO(email, githubUrl, videoUrl)
+
+		res.json({
+			message: "Project submitted Successfully!",
+			info: result
+		})
+	} catch(e) {
+		console.log("Error Occured while submiting the project postProject: ", e)
+	}
+}
+
+exports.getProjects = async (req, res) => {
+	try {
+		console.log(req.params)
+	  const email = req.params.email; // Get email from query parameter
+  
+	  // If email is not provided or not a string, return an error
+	  if (typeof email !== 'string' || !email) {
+		console.log('Email not found');
+		res.status(400).json({ message: 'Bad Request Email!' });
+		return;
+	  }
+  
+	  // Call the getProjectsDAO function to fetch projects from the database
+	  const projects = await getProjectsDAO(email);
+
+	  console.log(projects)
+  
+	  // If no projects found, return an appropriate response
+	  if (!projects || projects.length === 0) {
+		res.status(404).json({ message: 'No projects found!' });
+		return;
+	  }
+  
+	  // Send the projects as a response
+	  res.json({ projects });
+	} catch (e) {
+	  console.log('Error occurred while fetching projects:', e);
+	  res.status(500).json({ message: 'Internal Server Error' });
+	}
+  };
