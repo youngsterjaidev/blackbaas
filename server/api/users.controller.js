@@ -556,16 +556,10 @@ exports.uploadAWSS3BucketObject = async (req, res) => {
 // Projects
 exports.postProject = (req, res) => {
 	try {
-		// if(!req.body) {
-		// 	console.log("Body not found")
-		// 	res.status(204).json({ message: "Something went wrong !" });
-		// 	return
-		// }
-
-		req.body = {
-			email: "test333@gmail.com",
-			githubUrl: "jaam",
-			videoUrl: "jaam"
+		if(!req.body) {
+			console.log("Body not found")
+			res.status(204).json({ message: "Something went wrong !" });
+			return
 		}
 
 		const { email, githubUrl, videoUrl } = req.body

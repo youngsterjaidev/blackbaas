@@ -62,7 +62,7 @@ router.route("/videos").get(getVideos)
 router.route("/login").post(login)
 router.route("/delDB").get(delDB)
 
-router.route("/projects/submit-project").get(postProject)
+router.route("/projects/submit-project").post(postProject)
 router.route("/projects/get-projects/:email").get(getProjects)
 
 // exporting the router module
