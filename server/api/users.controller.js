@@ -70,6 +70,39 @@ const comparePassword = async (plainText, password) => {
 	return await bcrypt.compare(plainText, password);
 };
 
+exports.generateRandomEvaluation = () => {
+	const generateScore = () => Math.floor(Math.random() * 11);  // 0 to 10
+	const generateDecimalScore = () => Number((Math.random() * 10).toFixed(1));  // 0.0 to 10.0
+  
+	const feedbackOptions = [
+	  "Great project! Your implementation shows strong technical skills. Consider adding more comments to improve code readability.",
+	  "Impressive work overall. The creativity stands out, but there's room for improvement in problem-solving.",
+	  "Solid technical foundation. The documentation could be more comprehensive to help users understand the project better.",
+	  "Excellent presentation! The project solves a real problem, but consider optimizing some parts of the code for better performance.",
+	  "Good effort! The project shows potential. Focus on enhancing the user interface and adding more features in future iterations.",
+	  "Strong problem-solving approach. To take it to the next level, consider implementing more advanced algorithms.",
+	  "Well-documented project. To improve, try to make the code more modular and reusable.",
+	  "Innovative idea with good execution. Adding unit tests would significantly enhance the project's reliability.",
+	  "Technically sound project. Consider gathering user feedback to guide future development priorities.",
+	  "Great attention to detail in the presentation. To improve, focus on making the codebase more scalable for future expansions."
+	];
+  
+	return {
+	  overallScore: generateDecimalScore(),
+	  creativity: generateScore(),
+	  technicalProficiency: generateScore(),
+	  problemSolving: generateScore(),
+	  documentation: generateScore(),
+	  presentation: generateScore(),
+	  feedback: feedbackOptions[Math.floor(Math.random() * feedbackOptions.length)]
+	};
+  }
+
+exports.extractRepoName = (url) => {
+	const parts = url.split('/');
+	return parts[parts.length - 1].replace('.git', '');
+  };
+
 const {
 	addUserDAO,
 	getAllUsersDAO,

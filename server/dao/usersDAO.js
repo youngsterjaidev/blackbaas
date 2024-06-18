@@ -1,4 +1,5 @@
 const { ObjectId } = require("bson");
+const { generateRandomEvaluation, extractRepoName } = require("../api/users.controller");
 
 let _dbUsers;
 
@@ -240,7 +241,9 @@ exports.postProjectDAO = async (email, githubUrl, videoUrl) => {
                     projects: { 
                         githubUrl,
                         videoUrl,
-                        time: Date.now()
+                        title: extractRepoName(githubUrl),
+                        time: Date.now(),
+                        ...generateRandomEvaluation()
                     }
                 }
             },
