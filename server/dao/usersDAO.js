@@ -1,8 +1,8 @@
 const { ObjectId } = require("bson");
 
 const generateRandomEvaluation = () => {
-	const generateScore = () => Math.floor(Math.random() * 11);  // 0 to 10
-	const generateDecimalScore = () => Number((Math.random() * 10).toFixed(1));  // 0.0 to 10.0
+	const generateScore = 0;  // 0 to 10
+	const generateDecimalScore = 0;  // 0.0 to 10.0
   
 	const feedbackOptions = [
 	  "Great project! Your implementation shows strong technical skills. Consider adding more comments to improve code readability.",
@@ -18,13 +18,13 @@ const generateRandomEvaluation = () => {
 	];
   
 	return {
-	  overallScore: generateDecimalScore(),
-	  creativity: generateScore(),
-	  technicalProficiency: generateScore(),
-	  problemSolving: generateScore(),
-	  documentation: generateScore(),
-	  presentation: generateScore(),
-	  feedback: feedbackOptions[Math.floor(Math.random() * feedbackOptions.length)]
+	  overallScore: 0,
+	  creativity: 0,
+	  technicalProficiency: 0,
+	  problemSolving: 0,
+	  documentation: 0,
+	  presentation: 0,
+	  feedback: "Wait for the evaluation"
 	};
   }
 
